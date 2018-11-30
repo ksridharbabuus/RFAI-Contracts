@@ -25,14 +25,17 @@ contract ServiceRequest {
         address[] submitters;
         mapping(address => Solution) submittedSols;
 
-        address[] voters;
-        mapping(address => Vote) votes;
+        //address[] voters;
+        //mapping(address => Vote) votes;
+        
+        mapping(address => mapping(address => uint256)) votes;
     }
-    
+    /*
     struct Vote{
         address[] selectedSols;
         bool exists;
     }
+    */
     
     // Open -> Rejected
     // Open -> Approved -> Completed -> Closed
@@ -330,41 +333,17 @@ contract ServiceRequest {
         
         Request storage req = requests[requestId];
 
-        if(isFromFoundation) {
+        if(isFromFoundation && !req.submittedSols[solutionSubmitter].isShortlisted) {
             // 0x0 contains foundation shortlisted solutions
-            if(!req.submittedSols[solutionSubmitter].isShortlisted) {
-                Vote memory foundationVote;
-                if(!req.votes[address(0)].exists) {
-                    req.votes[address(0)] = foundationVote;
-                    req.votes[address(0)].selectedSols.push(solutionSubmitter);
-                    req.voters.push(address(0));
-                }
-                else {
-                    req.votes[address(0)].selectedSols.push(solutionSubmitter);
-                }
-                req.submittedSols[solutionSubmitter].isShortlisted = true;
-            }
+            req.votes[address(0)][address(0)] += 1;
+            req.votes[address(0)][solutionSubmitter] = 1;
+            req.submittedSols[solutionSubmitter].isShortlisted = true;
         }
         
-        Vote memory vot;
-        if(!req.votes[msg.sender].exists){
-            req.votes[msg.sender] = vot;
-            req.votes[msg.sender].selectedSols.push(solutionSubmitter);
-            req.voters.push(msg.sender);
-        }
-        else {
-            // Check if already votted for same solution submitter
-            bool subExists = false;
-            for(uint256 i=0; i<req.votes[msg.sender].selectedSols.length; i++)
-            {
-                if(req.votes[msg.sender].selectedSols[i] == solutionSubmitter) {
-                    subExists = true;
-                    break;
-                }
-            }
-            if(!subExists) {
-                req.votes[msg.sender].selectedSols.push(solutionSubmitter);
-            }
+        if(req.votes[msg.sender][solutionSubmitter] == 0)
+        {
+            req.votes[msg.sender][address(0)] += 1;
+            req.votes[msg.sender][solutionSubmitter] = 1;
         }
     }
     
@@ -407,44 +386,29 @@ contract ServiceRequest {
         // Should be Solution Submitter Only and should have atleast one vote
         require(req.submittedSols[msg.sender].isSubmitted && !req.submittedSols[msg.sender].isClaimed);
         
-        
-        if(req.votes[address(0)].exists && req.submittedSols[msg.sender].isShortlisted) {
-            fundationVotes = req.votes[address(0)].selectedSols.length;
-        }
-        
+        fundationVotes = req.votes[address(0)][address(0)];
         
         for(uint256 i=0; i<req.fundMembers.length;i++) {
             userVotes = 0;
             fundMember = req.fundMembers[0];
             userStake = req.funds[fundMember];
             if(userStake > 0) {
-                
-                if(req.votes[fundMember].exists) {
-                    for(uint256 j=0;j<req.votes[fundMember].selectedSols.length;j++) {
-                        if(req.votes[fundMember].selectedSols[j] == msg.sender) {
-                            userVotes = req.votes[fundMember].selectedSols.length;
-                            break;
-                        }
-                    }
-                    if(userVotes > 0) {
-                        userStake = userStake.div(userVotes);
-                        req.funds[fundMember] = req.funds[fundMember].sub(userStake);
-                        totalClaim = totalClaim.add(userStake);
-                    }
-                    
+                if(req.votes[fundMember][msg.sender] > 0) {
+                    userVotes = req.votes[fundMember][address(0)];
+                    userStake = userStake.div(userVotes);
+                    req.funds[fundMember] = req.funds[fundMember].sub(userStake);
+                    totalClaim = totalClaim.add(userStake);
                 }
                 else if(fundationVotes > 0) {
                     userStake = userStake.div(fundationVotes);
                     req.funds[fundMember] = req.funds[fundMember].sub(userStake);
                     totalClaim = totalClaim.add(userStake);
                 }
-                
             }
-            
         }
         
         balances[msg.sender] = balances[msg.sender].add(totalClaim);
-        req.submittedSols[msg.sender].isClaimed = true;        
+        req.submittedSols[msg.sender].isClaimed = true;
 
         return true;
     }
