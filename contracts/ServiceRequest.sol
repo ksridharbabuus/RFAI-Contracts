@@ -24,19 +24,10 @@ contract ServiceRequest {
         
         address[] submitters;
         mapping(address => Solution) submittedSols;
-
-        //address[] voters;
-        //mapping(address => Vote) votes;
         
         mapping(address => mapping(address => uint256)) votes;
     }
-    /*
-    struct Vote{
-        address[] selectedSols;
-        bool exists;
-    }
-    */
-    
+
     // Open -> Rejected
     // Open -> Approved -> Completed -> Closed
     enum RequestStatus { Open, Approved, Rejected, Completed, Closed }
@@ -104,7 +95,7 @@ contract ServiceRequest {
     
     function addOrUpdateFoundationMembers(address member, uint role, bool active) public returns (bool) {
         
-        require(owner == msg.sender || foundationMembers[msg.sender].role == 1);
+        require(owner == msg.sender || foundationMembers[msg.sender].role == 1 || foundationMembers[msg.sender].status);
         require(member != address(0));
         require(role == 0 || role == 1);
         
