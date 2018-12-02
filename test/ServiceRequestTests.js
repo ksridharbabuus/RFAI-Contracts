@@ -14,12 +14,10 @@ let signFuns       = require('./sign_mpe_funs');
 
 async function testErrorRevert(prom)
 {
-
-    console.log("Called");
     let rezE = -1
     try { await prom }
     catch(e) {
-        rezE = e.message.indexOf('revert') 
+        rezE = e.message.indexOf('revert');
         console.log("Catch Block: " + e.message);
     }
     assert(rezE >= 0, "Must generate error and error message must contain revert");
@@ -181,7 +179,6 @@ contract('ServiceRequest', function(accounts) {
             assert.equal(expiration.toNumber(), newexpiration);
 
             // Check the negative test cases
-
             //testErrorRevert(await serviceRequest.extendRequest(0, newexpiration-1000, {from: accounts[2]})); // Less 
             //testErrorRevert(await serviceRequest.extendRequest(0, newexpiration+1000, {from: accounts[3]})); // Diff account to extend
 
@@ -249,6 +246,9 @@ contract('ServiceRequest', function(accounts) {
             assert.equal(a6Bal_a.toNumber(), a6Bal_b.toNumber() + Amt6);
             assert.equal(a7Bal_a.toNumber(), a7Bal_b.toNumber() + Amt7);
 
-        });
+            // This test should fail as we cant fund to a closed request
+            //testErrorRevert(await serviceRequest.addFundsToRequest(0, Amt6, {from: accounts[6]}));
             
+        });
+        
 });
