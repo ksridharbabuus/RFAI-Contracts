@@ -182,12 +182,13 @@ contract ServiceRequest {
         balances[msg.sender] = balances[msg.sender].sub(amount);
         requests[requestId].totalFund = requests[requestId].totalFund.add(amount);
         
-        //Update the respective request funds
-        requests[requestId].funds[msg.sender] = requests[requestId].funds[msg.sender].add(amount);
         // Adding funds first time check
-        if(requests[requestId].funds[msg.sender] == amount){
+        if(requests[requestId].funds[msg.sender] == 0){
             requests[requestId].fundMembers.push(msg.sender);
         } // else member already exists
+
+        //Update the respective request funds
+        requests[requestId].funds[msg.sender] = requests[requestId].funds[msg.sender].add(amount);
             
         return true;
     }
@@ -255,9 +256,9 @@ contract ServiceRequest {
         Request storage req = requests[requestId];
         uint256 amount;
         for(uint256 i=0; i<req.fundMembers.length; i++) {
-            amount = req.funds[req.fundMembers[0]];
-            req.funds[req.fundMembers[0]].sub(amount);
-            balances[req.fundMembers[0]].add(amount);
+            amount = req.funds[req.fundMembers[i]];
+            req.funds[req.fundMembers[i]] = req.funds[req.fundMembers[i]].sub(amount);
+            balances[req.fundMembers[i]] = balances[req.fundMembers[i]].add(amount);
         }
         req.totalFund = 0;
         req.status = finalStatus;
@@ -381,7 +382,7 @@ contract ServiceRequest {
         
         for(uint256 i=0; i<req.fundMembers.length;i++) {
             userVotes = 0;
-            fundMember = req.fundMembers[0];
+            fundMember = req.fundMembers[i];
             userStake = req.funds[fundMember];
             if(userStake > 0) {
                 if(req.votes[fundMember][msg.sender] > 0) {

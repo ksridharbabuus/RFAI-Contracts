@@ -230,27 +230,25 @@ contract('ServiceRequest', function(accounts) {
             = await serviceRequest.requests.call(0);
 
         });
+
+        it("Initial Service Request Operations - Force Close Request 7", async function(){ 
+
+            const a6Bal_b = await serviceRequest.balances.call(accounts[6]);
+            const a7Bal_b = await serviceRequest.balances.call(accounts[7]);
+
+            await serviceRequest.closeRequest(0, {from: accounts[8]});
+            const [requestId, requester, totalFund, metadataDoc, expiration, endSubmission, endEvaluation, status]
+            = await serviceRequest.requests.call(0);
+
+            console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  metadataDoc + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
             
-            //testErrorRevert(await serviceRequest.extendRequest(0, newexpiration, {from: accounts[2]})); //For the requestId Zero
+            const a6Bal_a = await serviceRequest.balances.call(accounts[6]);
+            const a7Bal_a = await serviceRequest.balances.call(accounts[7]);
 
-/*            
+            assert.equal(status.toNumber(), 4);
+            assert.equal(a6Bal_a.toNumber(), a6Bal_b.toNumber() + Amt6);
+            assert.equal(a7Bal_a.toNumber(), a7Bal_b.toNumber() + Amt7);
+
+        });
             
-
-
-
-            // Should be able to extend
-            await serviceRequest.extendRequest(requestId, newexpiration, {from: accounts[2]});
-
-            // Should Revert as creator is not accounts[3] to Extend
-            //testErrorRevert(await serviceRequest.extendRequest(requestId, newexpiration+100, {from: accounts[3]}));
-
-            // Add Funds to the Request
-            await serviceRequest.addFundsToRequest(requestId_i, Amt6, {from: accounts[6]});
-            assert.equal(totalFund.toNumber(), GAmt - Amt2);
-
-            await serviceRequest.addFundsToRequest(requestId_i, Amt7, {from: accounts[7]});
-
-*/
-            // Approve the Request
-        
 });
