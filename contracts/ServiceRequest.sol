@@ -399,6 +399,7 @@ contract ServiceRequest {
             }
         }
         
+        req.totalFund = req.totalFund.sub(totalClaim);
         balances[msg.sender] = balances[msg.sender].add(totalClaim);
         req.submittedSols[msg.sender].isClaimed = true;
 

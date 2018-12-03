@@ -47,6 +47,95 @@ contract('ServiceRequest', function(accounts) {
             token = Token.at(tokenAddress);
         });
 
+    const addAndVerifyFoundationMember = async(_newAccount, _role, _status, _account) => {
+
+        await serviceRequest.addOrUpdateFoundationMembers(_newAccount, _role, _status, {from: _account});
+
+        const [role, status, exists] = await serviceRequest.foundationMembers.call(_newAccount);
+        assert.equal(exists, true);
+        assert.equal(status, _status);
+
+    };
+
+    const depositTokensToContract = async() => {
+        // Deposit amount to respective accounts
+        for(var i=2;i<9;i++) {
+            await token.transfer(accounts[i],  GAmt, {from:accounts[0]});
+            await token.approve(serviceRequest.address,GAmt, {from:accounts[i]}); 
+            await serviceRequest.deposit(GAmt, {from:accounts[i]});
+        }
+    };
+
+    const createRequestAndVerify = async (_amount, _expiration, _metadataDoc, _account) => {
+
+        const requestId_b = await serviceRequest.nextRequestId.call();
+        const accountBal_b = await serviceRequest.balances.call(_account);
+
+        await serviceRequest.createRequest(_amount,_expiration, _metadataDoc, {from: _account});
+
+        assert.equal((await serviceRequest.nextRequestId.call()).toNumber(), requestId_b.toNumber() + 1);
+        assert.equal((await serviceRequest.balances.call(_account)).toNumber(), accountBal_b.toNumber() - _amount);
+
+        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        = await serviceRequest.requests.call(requestId_b.toNumber());
+
+        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  metadataDoc_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+        console.log("Creator -- " + _account);
+
+    };
+
+    const extendRequestAndVerify = async(_requestId,  _expiration, _account) => {
+        const [requestId_b, requester_b, totalFund_b, metadataDoc_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
+        = await serviceRequest.requests.call(_requestId);
+
+        await serviceRequest.extendRequest(_requestId, _expiration, {from: _account});
+
+        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        = await serviceRequest.requests.call(_requestId);
+        
+        assert.equal(expiration_a.toNumber(), _expiration);
+    };
+
+    const approveRequestAndVerify = async (_requestId, _endSubmission, _endEvaluation, _expiration, _account) => {
+
+        const [role0, status0, exists0] = await serviceRequest.foundationMembers.call(_account);
+        //console.log("Mem Status " + status0);
+
+        const [requestId_b, requester_b, totalFund_b, metadataDoc_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
+        = await serviceRequest.requests.call(_requestId);
+        
+        await serviceRequest.approveRequest(_requestId, _endSubmission, _endEvaluation, _expiration, {from: _account});
+
+        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        = await serviceRequest.requests.call(_requestId);
+
+        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  metadataDoc_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+
+        assert.equal(expiration_a.toNumber(), _expiration);
+        assert.equal(endSubmission_a.toNumber(), _endSubmission);
+        assert.equal(endEvaluation_a.toNumber(), _endEvaluation);
+        assert.equal(status_a.toNumber(), 1);
+
+    };
+
+    const addFundsAndValidate = async (_requestId, _amount, _account) => {
+
+        const [requestId_b, requester_b, totalFund_b, metadataDoc_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
+        = await serviceRequest.requests.call(_requestId);
+
+        const bal_b = await serviceRequest.balances.call(_account);
+
+        await serviceRequest.addFundsToRequest(_requestId, _amount, {from: _account});
+
+        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        = await serviceRequest.requests.call(_requestId);
+
+        const bal_a = await serviceRequest.balances.call(_account);
+
+        assert.equal(totalFund_a.toNumber(), totalFund_b.toNumber() + _amount);
+        assert.equal(bal_a.toNumber(), bal_b.toNumber() - _amount);
+        
+    };
 
     it ("Initial Wallet Operation 1", async function()
         { 
@@ -78,32 +167,20 @@ contract('ServiceRequest', function(accounts) {
         it ("Fondation Member Operations 2", async function(){
 
             // accounts[8], accounts[9] -> Foundation Members
-            await serviceRequest.addOrUpdateFoundationMembers(accounts[9], 0, true);
-
-            const [role, status, exists] = await serviceRequest.foundationMembers.call(accounts[9]);
-            assert.equal(status, true);
+            await addAndVerifyFoundationMember(accounts[9], 0, true, accounts[0]);
 
             // Check for non existance Foundation Member
             const [role1, status1, exists1] = await serviceRequest.foundationMembers.call(accounts[8]);
             assert.equal(exists1, false);
 
             // Add a new member
-            await serviceRequest.addOrUpdateFoundationMembers(accounts[8], 1, true);
-            const [role2, status2, exists2] = await serviceRequest.foundationMembers.call(accounts[8]);
-            assert.equal(exists2, true);
-            assert.equal(status2, true);
+            await addAndVerifyFoundationMember(accounts[8], 1, true, accounts[0]);
 
             // Disable the Foundation Account accounts[8]
-            await serviceRequest.addOrUpdateFoundationMembers(accounts[9], 0, false);
-            const [role3, status3, exists3] = await serviceRequest.foundationMembers.call(accounts[9]);
-            assert.equal(exists3, true);
-            assert.equal(status3, false);
+            await addAndVerifyFoundationMember(accounts[9], 0, false, accounts[0]);
 
-            // Disable the Foundation Account accounts[8]
-            await serviceRequest.addOrUpdateFoundationMembers(accounts[9], 0, true, {from: accounts[8]});
-            const [role4, status4, exists4] = await serviceRequest.foundationMembers.call(accounts[9]);
-            assert.equal(exists4, true);
-            assert.equal(status4, true);
+            // Enable the Foundation Account accounts[8]
+            await addAndVerifyFoundationMember(accounts[9], 0, true, accounts[8]);
 
             // Role=0 should not be able to add new member
             testErrorRevert(await serviceRequest.addOrUpdateFoundationMembers(accounts[8], 1, true, {from: accounts[9]}));
@@ -112,71 +189,30 @@ contract('ServiceRequest', function(accounts) {
 
         });
         
+        
+
         it("Initial Service Request Operations - Create Request 3", async function() 
         {
+            
             // accounts[2] -> Request Creator
             // accounts[3], accounts[4], accounts[5] -> Solution Submiter
             // accounts[6] & accounts[7] -> Stakers
             // accounts[8] & accounts[9] -> Foundation Members
 
-            await token.transfer(accounts[2],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[2]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[2]});
-
-            await token.transfer(accounts[3],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[3]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[3]});
-
-
-            await token.transfer(accounts[4],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[4]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[4]});
-
-            await token.transfer(accounts[5],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[5]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[5]});
-
-            await token.transfer(accounts[6],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[6]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[6]});
-
-            await token.transfer(accounts[7],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[7]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[7]});
-
-            // Deposit in Foundation Account as well
-            await token.transfer(accounts[8],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[8]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[8]});
-
             // Create Service Request
-            let expiration_i = web3.eth.blockNumber + 100000;
-            let metadataDoc_i = 'abcdefghijklmsnopqrstuvwxyz';
-            let requestId_i = 0;
-            await serviceRequest.createRequest(Amt2,expiration_i, metadataDoc_i, {from: accounts[2]});
+            let expiration = web3.eth.blockNumber + 100000;
+            let metadataDoc = 'abcdefghijklmsnopqrstuvwxyz';
 
-            assert.equal((await serviceRequest.nextRequestId.call()).toNumber(), requestId_i + 1);
-            assert.equal((await serviceRequest.balances.call(accounts[2])).toNumber(), GAmt - Amt2);
-        
-            const [requestId, requester, totalFund, metadataDoc, expiration, endSubmission, endEvaluation, status]
-            = await serviceRequest.requests.call(requestId_i);
-
-            console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  metadataDoc + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
-            console.log("A2 -- " + accounts[2]);
+            await depositTokensToContract();
+            await createRequestAndVerify(Amt2, expiration, metadataDoc, accounts[2]);
 
         });
+
 
         it("Initial Service Request Operations - Extend Request 4", async function(){
 
             let newexpiration = 200000;
-            console.log("newexpiration = " + newexpiration);
-            await serviceRequest.extendRequest(0, newexpiration, {from: accounts[2]});
-
-            const [requestId, requester, totalFund, metadataDoc, expiration, endSubmission, endEvaluation, status]
-            = await serviceRequest.requests.call(0);
-            console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  metadataDoc + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
-            
-            assert.equal(expiration.toNumber(), newexpiration);
+            await extendRequestAndVerify(0, newexpiration, accounts[2]);
 
             // Check the negative test cases
             //testErrorRevert(await serviceRequest.extendRequest(0, newexpiration-1000, {from: accounts[2]})); // Less 
@@ -185,39 +221,21 @@ contract('ServiceRequest', function(accounts) {
         });
 
         it("Initial Service Request Operations - Approve Request 5", async function(){
-
-            const [role0, status0, exists0] = await serviceRequest.foundationMembers.call(accounts[8]);
-            console.log("Mem Status " + status0);
-
-            let newexpiration = 300000;
-            await serviceRequest.approveRequest(0, newexpiration-200000, newexpiration-100000, newexpiration, {from: accounts[8]});
-
-            const [requestId, requester, totalFund, metadataDoc, expiration, endSubmission, endEvaluation, status]
-            = await serviceRequest.requests.call(0);
-
-            console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  metadataDoc + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
             
-            assert.equal(expiration.toNumber(), newexpiration);
-            assert.equal(endSubmission.toNumber(), newexpiration - 200000);
-            assert.equal(endEvaluation.toNumber(), newexpiration - 100000);
-            assert.equal(status.toNumber(), 1); // Approved
+            let newexpiration = 300000;
+            approveRequestAndVerify(0, newexpiration-200000, newexpiration-100000, newexpiration, accounts[8]);
 
         });
 
         it("Initial Service Request Operations - Load Funds into Request 5", async function(){ 
-
-            await serviceRequest.addFundsToRequest(0, Amt6, {from: accounts[6]});
-            await serviceRequest.addFundsToRequest(0, Amt7, {from: accounts[7]});
-
-            const [requestId, requester, totalFund, metadataDoc, expiration, endSubmission, endEvaluation, status]
-            = await serviceRequest.requests.call(0);
-
-            assert.equal(totalFund.toNumber(), Amt2+Amt6+Amt7);
+            
+            await addFundsAndValidate(0, Amt6, accounts[6]);
+            await addFundsAndValidate(0, Amt7, accounts[7]);
 
         });
 
         it("Initial Service Request Operations - Submit Solution to Request 6", async function(){ 
-
+            
             let solutionDoc = 'aaalllssllddffgghhjjj';
             await serviceRequest.createOrUpdateSolutionProposal(0, solutionDoc, {from: accounts[3]});
             await serviceRequest.createOrUpdateSolutionProposal(0, solutionDoc, {from: accounts[4]});
@@ -229,7 +247,8 @@ contract('ServiceRequest', function(accounts) {
         });
 
         it("Initial Service Request Operations - Force Close Request 7", async function(){ 
-
+            
+            const a2Bal_b = await serviceRequest.balances.call(accounts[2]);
             const a6Bal_b = await serviceRequest.balances.call(accounts[6]);
             const a7Bal_b = await serviceRequest.balances.call(accounts[7]);
 
@@ -239,10 +258,12 @@ contract('ServiceRequest', function(accounts) {
 
             console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  metadataDoc + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
             
+            const a2Bal_a = await serviceRequest.balances.call(accounts[2]);
             const a6Bal_a = await serviceRequest.balances.call(accounts[6]);
             const a7Bal_a = await serviceRequest.balances.call(accounts[7]);
 
             assert.equal(status.toNumber(), 4);
+            assert.equal(a2Bal_a.toNumber(), a2Bal_b.toNumber() + Amt2);
             assert.equal(a6Bal_a.toNumber(), a6Bal_b.toNumber() + Amt6);
             assert.equal(a7Bal_a.toNumber(), a7Bal_b.toNumber() + Amt7);
 
@@ -250,5 +271,67 @@ contract('ServiceRequest', function(accounts) {
             //testErrorRevert(await serviceRequest.addFundsToRequest(0, Amt6, {from: accounts[6]}));
             
         });
-        
+
+        it("Initial Service Request Operations - Vote and Claim Request 8", async function(){
+
+            // Create Service Request
+            let expiration_i = web3.eth.blockNumber + 90;
+            let endSubmission_i = web3.eth.blockNumber + 25;
+            let endEvaluation_i = web3.eth.blockNumber + 50;
+            let metadataDoc_i = 'abcdefghijklmsnopqrstuvwxyz';
+
+            let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
+
+            await createRequestAndVerify(Amt2,expiration_i, metadataDoc_i, accounts[2]);
+
+            // Approve the request
+            let newexpiration = expiration_i+10;
+            await approveRequestAndVerify(requestId_i, endSubmission_i, endEvaluation_i, newexpiration, accounts[8]);
+
+            // Add Funds to the request
+            await addFundsAndValidate(requestId_i, Amt6, accounts[6]);
+            await addFundsAndValidate(requestId_i, Amt7, accounts[7]);
+            
+            // Submit the solutions
+            let solutionDoc = 'aaalllssllddffgghhjjj';
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[3]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[4]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[5]});
+
+            // Mine to Increase the blocknumber
+            const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+            = await serviceRequest.requests.call(requestId_i);
+            await mineBlocks(endSubmission_a.toNumber() - web3.eth.blockNumber);
+
+            // Foundation Votes
+            await serviceRequest.vote(requestId_i, accounts[3], {from: accounts[8]});
+            await serviceRequest.vote(requestId_i, accounts[5], {from: accounts[8]});
+
+            // Stake Votes
+            await serviceRequest.vote(requestId_i, accounts[3], {from: accounts[6]});
+            await serviceRequest.vote(requestId_i, accounts[4], {from: accounts[6]});
+
+            // Mine to Increase the blocknumber
+            await mineBlocks(endEvaluation_a.toNumber() - web3.eth.blockNumber);
+
+            // Request Claim
+            const a3Bal_b = await serviceRequest.balances.call(accounts[3]);
+
+            await serviceRequest.requestClaim(requestId_i, {from: accounts[3]});
+
+            const a3Bal_a = await serviceRequest.balances.call(accounts[3]);
+
+            console.log(a3Bal_b.toNumber() + "=" + a3Bal_a.toNumber());
+            assert.equal(a3Bal_a.toNumber(), a3Bal_b.toNumber() + (Amt6/2) + (Amt7/2) + (Amt2/2));
+
+            // Should fail if we try to claim again
+            //testErrorRevert(await serviceRequest.requestClaim(requestId_i, {from: accounts[3]}));
+
+        });
+       
+        const mineBlocks = async(numOfBlocks) => {
+            for(var i=0; i<= numOfBlocks; i++) {
+                await token.approve(serviceRequest.address,GAmt+i+1, {from:accounts[0]}); 
+            }
+        };
 });
