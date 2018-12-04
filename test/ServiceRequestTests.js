@@ -137,6 +137,39 @@ contract('ServiceRequest', function(accounts) {
         
     };
 
+    const voteAndVerify = async(_requestId,_submitter, _account) => {
+        await serviceRequest.vote(_requestId, _submitter, {from: _account});
+    };
+
+    
+    const claimAndVerify = async(_requestId, _account, _increasedAmt) => {
+
+        const bal_b = await serviceRequest.balances.call(_account);
+        await serviceRequest.requestClaim(_requestId, {from: _account});
+        const bal_a = await serviceRequest.balances.call(_account);
+
+        console.log(bal_b.toNumber() + "=" + bal_a.toNumber());
+        assert.equal(bal_a.toNumber(), bal_b.toNumber() + _increasedAmt);
+    };
+
+    const claimStakeAndVerify = async(_requestId, _account, _increasedAmt) => {
+
+        const bal_b = await serviceRequest.balances.call(_account);
+        await serviceRequest.requestReClaim(_requestId, {from: _account});
+        const bal_a = await serviceRequest.balances.call(_account);
+
+        console.log(bal_b.toNumber() + "=" + bal_a.toNumber());
+        assert.equal(bal_a.toNumber(), bal_b.toNumber() + _increasedAmt);
+    };
+
+    const mineBlocks = async(numOfBlocks) => {
+        for(var i=0; i<= numOfBlocks; i++) {
+            await token.approve(serviceRequest.address,GAmt+i+1, {from:accounts[0]}); 
+        }
+    };
+    
+    // ************************ Test Scenarios Starts From Here ********************************************
+
     it ("Initial Wallet Operation 1", async function()
         { 
             // accounts[0] and accounts[1] are used for this testing
@@ -304,34 +337,74 @@ contract('ServiceRequest', function(accounts) {
             await mineBlocks(endSubmission_a.toNumber() - web3.eth.blockNumber);
 
             // Foundation Votes
-            await serviceRequest.vote(requestId_i, accounts[3], {from: accounts[8]});
-            await serviceRequest.vote(requestId_i, accounts[5], {from: accounts[8]});
+            await voteAndVerify(requestId_i, accounts[3], accounts[8]);
+            await voteAndVerify(requestId_i, accounts[5], accounts[8]);
 
             // Stake Votes
-            await serviceRequest.vote(requestId_i, accounts[3], {from: accounts[6]});
-            await serviceRequest.vote(requestId_i, accounts[4], {from: accounts[6]});
+            await voteAndVerify(requestId_i, accounts[3], accounts[6]);
+            await voteAndVerify(requestId_i, accounts[4], accounts[6]);
 
             // Mine to Increase the blocknumber
             await mineBlocks(endEvaluation_a.toNumber() - web3.eth.blockNumber);
 
             // Request Claim
-            const a3Bal_b = await serviceRequest.balances.call(accounts[3]);
-
-            await serviceRequest.requestClaim(requestId_i, {from: accounts[3]});
-
-            const a3Bal_a = await serviceRequest.balances.call(accounts[3]);
-
-            console.log(a3Bal_b.toNumber() + "=" + a3Bal_a.toNumber());
-            assert.equal(a3Bal_a.toNumber(), a3Bal_b.toNumber() + (Amt6/2) + (Amt7/2) + (Amt2/2));
+            await claimAndVerify(requestId_i, accounts[3], (Amt6/2) + (Amt7/2) + (Amt2/2));
 
             // Should fail if we try to claim again
             //testErrorRevert(await serviceRequest.requestClaim(requestId_i, {from: accounts[3]}));
 
         });
-       
-        const mineBlocks = async(numOfBlocks) => {
-            for(var i=0; i<= numOfBlocks; i++) {
-                await token.approve(serviceRequest.address,GAmt+i+1, {from:accounts[0]}); 
-            }
-        };
+
+        it("Initial Service Request Operations - Expiry and ReClaim Stake Request 9", async function(){
+
+            // Create Service Request
+            let expiration_i = web3.eth.blockNumber + 90;
+            let endSubmission_i = web3.eth.blockNumber + 25;
+            let endEvaluation_i = web3.eth.blockNumber + 50;
+            let metadataDoc_i = 'abcdefghijklmsnopqrstuvwxyz';
+
+            let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
+
+            await createRequestAndVerify(Amt2,expiration_i, metadataDoc_i, accounts[2]);
+
+            // Approve the request
+            let newexpiration = expiration_i+10;
+            await approveRequestAndVerify(requestId_i, endSubmission_i, endEvaluation_i, newexpiration, accounts[8]);
+
+            // Add Funds to the request
+            await addFundsAndValidate(requestId_i, Amt6, accounts[6]);
+            await addFundsAndValidate(requestId_i, Amt7, accounts[7]);
+            
+            // Submit the solutions
+            let solutionDoc = 'aaalllssllddffgghhjjj';
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[3]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[4]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[5]});
+
+            // Mine to Increase the blocknumber
+            const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+            = await serviceRequest.requests.call(requestId_i);
+            await mineBlocks(endSubmission_a.toNumber() - web3.eth.blockNumber);
+
+            // Foundation Votes
+            await voteAndVerify(requestId_i, accounts[3], accounts[8]);
+            await voteAndVerify(requestId_i, accounts[5], accounts[8]);
+
+            // Stake Votes
+            await voteAndVerify(requestId_i, accounts[3], accounts[6]);
+            await voteAndVerify(requestId_i, accounts[4], accounts[6]);
+
+            // Mine to Increase the blocknumber
+            await mineBlocks(endEvaluation_a.toNumber() - web3.eth.blockNumber);
+
+            // No Claim Happend from the submitters and making request expired to enable reclaim
+            await mineBlocks(expiration_a.toNumber() - web3.eth.blockNumber);
+            await claimStakeAndVerify(requestId_i, accounts[6], Amt6);
+            await claimStakeAndVerify(requestId_i, accounts[7], Amt7);
+
+            // Should fail if we try to claim again
+            //testErrorRevert(await serviceRequest.requestClaim(requestId_i, {from: accounts[3]}));
+
+        });
+
 });
