@@ -57,6 +57,19 @@ contract ServiceRequest {
  
     ERC20 public token; // Address of token contract
     
+
+    // Events
+    event AddFoundationMember(address indexed member, uint role, bool status, address indexed actor);
+    event CreateRequest(uint256 requestId, address indexed requester, uint256 expiration, uint256 amount, bytes metadataDoc);
+    event ExtendRequest(uint256 indexed requestId, address indexed requester, uint256 expiration);
+    event ApproveRequest(uint256 indexed requestId, address indexed approver, uint256 endSubmission, uint256 endEvaluation, uint256 expiration);
+    event FundRequest(uint256 indexed requestId, address indexed staker, uint256 amount);
+    event AddSolutionRequest(uint256 indexed requestId, address indexed submitter, bytes solutionDoc);
+    event VoteRequest(uint256 indexed requestId, address indexed voter, address indexed submitter);
+    event ClaimRequest(uint256 indexed requestId, address indexed submitter, uint256 amount);
+    event CloseRequest(uint256 indexed requestId, address indexed actor);
+    event RejectRequest(uint256 indexed requestId, address indexed actor);
+
     constructor (address _token)
     public
     {
@@ -108,6 +121,8 @@ contract ServiceRequest {
         foundationMembers[member].status = active;
         foundationMembers[member].exists = true;
         
+        emit AddFoundationMember(member, role, active, msg.sender);
+
         return true;
     }
     
@@ -134,6 +149,7 @@ contract ServiceRequest {
 
         nextRequestId += 1;
         
+        emit CreateRequest(nextRequestId-1, msg.sender, expiration, value, metadataDoc);
 
         return true;
     }
@@ -160,6 +176,9 @@ contract ServiceRequest {
         require(newExpiration >= req.expiration);
 
         requests[requestId].expiration = newExpiration;
+
+        emit ExtendRequest(requestId, msg.sender, newExpiration);
+
         return true;
     }
     
@@ -189,7 +208,9 @@ contract ServiceRequest {
 
         //Update the respective request funds
         requests[requestId].funds[msg.sender] = requests[requestId].funds[msg.sender].add(amount);
-            
+        
+        emit FundRequest(requestId, msg.sender, amount);
+
         return true;
     }
 
@@ -219,6 +240,8 @@ contract ServiceRequest {
         requests[requestId].endEvaluation = endEvaluation;
         requests[requestId].expiration = newExpiration;
         
+        emit ApproveRequest(requestId, msg.sender, endSubmission, endEvaluation, newExpiration);
+
         return true;
     }
     
@@ -234,6 +257,8 @@ contract ServiceRequest {
         
         settleFundsAndChangeStatus(requestId, RequestStatus.Rejected);
         
+        emit RejectRequest(requestId, msg.sender);
+
         return true;
     }
 
@@ -249,6 +274,7 @@ contract ServiceRequest {
         
         settleFundsAndChangeStatus(requestId, RequestStatus.Closed);
         
+        emit CloseRequest(requestId, msg.sender);
     }
     
     function settleFundsAndChangeStatus(uint256 requestId, RequestStatus finalStatus) internal returns(bool) {
@@ -289,6 +315,8 @@ contract ServiceRequest {
         req.submittedSols[msg.sender].solutionDoc = solutionDoc;
         req.submittedSols[msg.sender].isSubmitted = true;
         
+        emit AddSolutionRequest(requestId, msg.sender, solutionDoc);
+
         return true;
         
     }
@@ -315,6 +343,7 @@ contract ServiceRequest {
         
         submitVote(requestId, solutionSubmitter, foundationMembers[msg.sender].status);
         
+        emit VoteRequest(requestId, msg.sender, solutionSubmitter);
         
         return true;
     }
@@ -403,6 +432,8 @@ contract ServiceRequest {
         balances[msg.sender] = balances[msg.sender].add(totalClaim);
         req.submittedSols[msg.sender].isClaimed = true;
 
+        emit ClaimRequest(requestId, msg.sender, totalClaim);
+        
         return true;
     }
     
