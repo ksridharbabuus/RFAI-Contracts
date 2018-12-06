@@ -66,31 +66,31 @@ contract('ServiceRequest', function(accounts) {
         }
     };
 
-    const createRequestAndVerify = async (_amount, _expiration, _metadataDoc, _account) => {
+    const createRequestAndVerify = async (_amount, _expiration, _documentURI, _account) => {
 
         const requestId_b = await serviceRequest.nextRequestId.call();
         const accountBal_b = await serviceRequest.balances.call(_account);
 
-        await serviceRequest.createRequest(_amount,_expiration, _metadataDoc, {from: _account});
+        await serviceRequest.createRequest(_amount,_expiration, _documentURI, {from: _account});
 
         assert.equal((await serviceRequest.nextRequestId.call()).toNumber(), requestId_b.toNumber() + 1);
         assert.equal((await serviceRequest.balances.call(_account)).toNumber(), accountBal_b.toNumber() - _amount);
 
-        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
         = await serviceRequest.requests.call(requestId_b.toNumber());
 
-        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  metadataDoc_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
         console.log("Creator -- " + _account);
 
     };
 
     const extendRequestAndVerify = async(_requestId,  _expiration, _account) => {
-        const [requestId_b, requester_b, totalFund_b, metadataDoc_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
+        const [requestId_b, requester_b, totalFund_b, documentURI_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
         = await serviceRequest.requests.call(_requestId);
 
         await serviceRequest.extendRequest(_requestId, _expiration, {from: _account});
 
-        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
         = await serviceRequest.requests.call(_requestId);
         
         assert.equal(expiration_a.toNumber(), _expiration);
@@ -101,15 +101,15 @@ contract('ServiceRequest', function(accounts) {
         const [role0, status0, exists0] = await serviceRequest.foundationMembers.call(_account);
         //console.log("Mem Status " + status0);
 
-        const [requestId_b, requester_b, totalFund_b, metadataDoc_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
+        const [requestId_b, requester_b, totalFund_b, documentURI_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
         = await serviceRequest.requests.call(_requestId);
         
         await serviceRequest.approveRequest(_requestId, _endSubmission, _endEvaluation, _expiration, {from: _account});
 
-        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
         = await serviceRequest.requests.call(_requestId);
 
-        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  metadataDoc_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
 
         assert.equal(expiration_a.toNumber(), _expiration);
         assert.equal(endSubmission_a.toNumber(), _endSubmission);
@@ -120,14 +120,14 @@ contract('ServiceRequest', function(accounts) {
 
     const addFundsAndValidate = async (_requestId, _amount, _account) => {
 
-        const [requestId_b, requester_b, totalFund_b, metadataDoc_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
+        const [requestId_b, requester_b, totalFund_b, documentURI_b, expiration_b, endSubmission_b, endEvaluation_b, status_b]
         = await serviceRequest.requests.call(_requestId);
 
         const bal_b = await serviceRequest.balances.call(_account);
 
         await serviceRequest.addFundsToRequest(_requestId, _amount, {from: _account});
 
-        const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
         = await serviceRequest.requests.call(_requestId);
 
         const bal_a = await serviceRequest.balances.call(_account);
@@ -168,6 +168,16 @@ contract('ServiceRequest', function(accounts) {
         }
     };
     
+    const rejectRequestAndVerify = async(_requestId, _account) => {
+
+        await serviceRequest.rejectRequest(_requestId, {from: _account});
+
+        const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        = await serviceRequest.requests.call(_requestId);
+
+        assert.equal(status_a.toNumber(), 2);
+    };
+
     // ************************ Test Scenarios Starts From Here ********************************************
 
     it ("Initial Wallet Operation 1", async function()
@@ -234,10 +244,10 @@ contract('ServiceRequest', function(accounts) {
 
             // Create Service Request
             let expiration = web3.eth.blockNumber + 100000;
-            let metadataDoc = 'abcdefghijklmsnopqrstuvwxyz';
+            let documentURI = 'abcdefghijklmsnopqrstuvwxyz';
 
             await depositTokensToContract();
-            await createRequestAndVerify(Amt2, expiration, metadataDoc, accounts[2]);
+            await createRequestAndVerify(Amt2, expiration, documentURI, accounts[2]);
 
         });
 
@@ -269,12 +279,12 @@ contract('ServiceRequest', function(accounts) {
 
         it("Initial Service Request Operations - Submit Solution to Request 6", async function(){ 
             
-            let solutionDoc = 'aaalllssllddffgghhjjj';
-            await serviceRequest.createOrUpdateSolutionProposal(0, solutionDoc, {from: accounts[3]});
-            await serviceRequest.createOrUpdateSolutionProposal(0, solutionDoc, {from: accounts[4]});
-            await serviceRequest.createOrUpdateSolutionProposal(0, solutionDoc, {from: accounts[5]});
+            let solutionDocURI = 'aaalllssllddffgghhjjj';
+            await serviceRequest.createOrUpdateSolutionProposal(0, solutionDocURI, {from: accounts[3]});
+            await serviceRequest.createOrUpdateSolutionProposal(0, solutionDocURI, {from: accounts[4]});
+            await serviceRequest.createOrUpdateSolutionProposal(0, solutionDocURI, {from: accounts[5]});
 
-            const [requestId, requester, totalFund, metadataDoc, expiration, endSubmission, endEvaluation, status]
+            const [requestId, requester, totalFund, documentURI, expiration, endSubmission, endEvaluation, status]
             = await serviceRequest.requests.call(0);
 
         });
@@ -286,10 +296,10 @@ contract('ServiceRequest', function(accounts) {
             const a7Bal_b = await serviceRequest.balances.call(accounts[7]);
 
             await serviceRequest.closeRequest(0, {from: accounts[8]});
-            const [requestId, requester, totalFund, metadataDoc, expiration, endSubmission, endEvaluation, status]
+            const [requestId, requester, totalFund, documentURI, expiration, endSubmission, endEvaluation, status]
             = await serviceRequest.requests.call(0);
 
-            console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  metadataDoc + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
+            console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  documentURI + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
             
             const a2Bal_a = await serviceRequest.balances.call(accounts[2]);
             const a6Bal_a = await serviceRequest.balances.call(accounts[6]);
@@ -305,17 +315,17 @@ contract('ServiceRequest', function(accounts) {
             
         });
 
-        it("Initial Service Request Operations - Vote and Claim Request 8", async function(){
+        it("Service Request Operations - Vote and Claim Request 8", async function(){
 
             // Create Service Request
             let expiration_i = web3.eth.blockNumber + 90;
             let endSubmission_i = web3.eth.blockNumber + 25;
             let endEvaluation_i = web3.eth.blockNumber + 50;
-            let metadataDoc_i = 'abcdefghijklmsnopqrstuvwxyz';
+            let documentURI_i = 'abcdefghijklmsnopqrstuvwxyz';
 
             let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
 
-            await createRequestAndVerify(Amt2,expiration_i, metadataDoc_i, accounts[2]);
+            await createRequestAndVerify(Amt2,expiration_i, documentURI_i, accounts[2]);
 
             // Approve the request
             let newexpiration = expiration_i+10;
@@ -326,13 +336,13 @@ contract('ServiceRequest', function(accounts) {
             await addFundsAndValidate(requestId_i, Amt7, accounts[7]);
             
             // Submit the solutions
-            let solutionDoc = 'aaalllssllddffgghhjjj';
-            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[3]});
-            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[4]});
-            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[5]});
+            let solutionDocURI = 'aaalllssllddffgghhjjj';
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[3]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[4]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[5]});
 
             // Mine to Increase the blocknumber
-            const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+            const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
             = await serviceRequest.requests.call(requestId_i);
             await mineBlocks(endSubmission_a.toNumber() - web3.eth.blockNumber);
 
@@ -355,17 +365,17 @@ contract('ServiceRequest', function(accounts) {
 
         });
 
-        it("Initial Service Request Operations - Expiry and ReClaim Stake Request 9", async function(){
+        it("Service Request Operations - Expiry and ReClaim Stake Request 9", async function(){
 
             // Create Service Request
             let expiration_i = web3.eth.blockNumber + 90;
             let endSubmission_i = web3.eth.blockNumber + 25;
             let endEvaluation_i = web3.eth.blockNumber + 50;
-            let metadataDoc_i = 'abcdefghijklmsnopqrstuvwxyz';
+            let documentURI_i = 'abcdefghijklmsnopqrstuvwxyz';
 
             let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
 
-            await createRequestAndVerify(Amt2,expiration_i, metadataDoc_i, accounts[2]);
+            await createRequestAndVerify(Amt2,expiration_i, documentURI_i, accounts[2]);
 
             // Approve the request
             let newexpiration = expiration_i+10;
@@ -376,13 +386,13 @@ contract('ServiceRequest', function(accounts) {
             await addFundsAndValidate(requestId_i, Amt7, accounts[7]);
             
             // Submit the solutions
-            let solutionDoc = 'aaalllssllddffgghhjjj';
-            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[3]});
-            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[4]});
-            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDoc, {from: accounts[5]});
+            let solutionDocURI = 'aaalllssllddffgghhjjj';
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[3]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[4]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[5]});
 
             // Mine to Increase the blocknumber
-            const [requestId_a, requester_a, totalFund_a, metadataDoc_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+            const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
             = await serviceRequest.requests.call(requestId_i);
             await mineBlocks(endSubmission_a.toNumber() - web3.eth.blockNumber);
 
@@ -404,6 +414,23 @@ contract('ServiceRequest', function(accounts) {
 
             // Should fail if we try to claim again
             //testErrorRevert(await serviceRequest.requestClaim(requestId_i, {from: accounts[3]}));
+
+        });
+
+        it("Service Request Operations - Reject Request 10", async function(){
+
+            // Create Service Request
+            let expiration_i = web3.eth.blockNumber + 90;
+            let endSubmission_i = web3.eth.blockNumber + 25;
+            let endEvaluation_i = web3.eth.blockNumber + 50;
+            let documentURI_i = 'abcdefghijklmsnopqrstuvwxyz';
+
+            let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
+
+            await createRequestAndVerify(Amt2,expiration_i, documentURI_i, accounts[2]);
+
+            // Reject the request
+            await rejectRequestAndVerify(requestId_i, accounts[9]);
 
         });
 

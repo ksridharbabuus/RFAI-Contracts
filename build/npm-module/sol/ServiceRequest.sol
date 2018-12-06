@@ -11,7 +11,7 @@ contract ServiceRequest {
         uint256 requestId;
         address requester;
         uint256 totalFund;
-        bytes documentURI;
+        bytes metadataDoc;
         
         uint256 expiration;
         uint256 endSubmission;
@@ -34,7 +34,7 @@ contract ServiceRequest {
     enum RequestStatus { Open, Approved, Rejected, Completed, Closed }
     
     struct Solution {
-        bytes solutionDocURI;
+        bytes solutionDoc;
         uint256 totalVotes;
         
         bool isSubmitted;
@@ -61,11 +61,11 @@ contract ServiceRequest {
 
     // Events
     event AddFoundationMember(address indexed member, uint role, bool status, address indexed actor);
-    event CreateRequest(uint256 requestId, address indexed requester, uint256 expiration, uint256 amount, bytes documentURI);
+    event CreateRequest(uint256 requestId, address indexed requester, uint256 expiration, uint256 amount, bytes metadataDoc);
     event ExtendRequest(uint256 indexed requestId, address indexed requester, uint256 expiration);
     event ApproveRequest(uint256 indexed requestId, address indexed approver, uint256 endSubmission, uint256 endEvaluation, uint256 expiration);
     event FundRequest(uint256 indexed requestId, address indexed staker, uint256 amount);
-    event AddSolutionRequest(uint256 indexed requestId, address indexed submitter, bytes solutionDocURI);
+    event AddSolutionRequest(uint256 indexed requestId, address indexed submitter, bytes solutionDoc);
     event VoteRequest(uint256 indexed requestId, address indexed voter, address indexed submitter);
     event ClaimRequest(uint256 indexed requestId, address indexed submitter, uint256 amount);
     event CloseRequest(uint256 indexed requestId, address indexed actor);
@@ -127,7 +127,7 @@ contract ServiceRequest {
         return true;
     }
     
-    function createRequest(uint256 value, uint256 expiration, bytes documentURI) 
+    function createRequest(uint256 value, uint256 expiration, bytes metadataDoc) 
     public
     returns(bool) 
     {
@@ -139,7 +139,7 @@ contract ServiceRequest {
         requests[nextRequestId].requestId = nextRequestId;
         requests[nextRequestId].requester = msg.sender;
         requests[nextRequestId].totalFund = value;
-        requests[nextRequestId].documentURI = documentURI;
+        requests[nextRequestId].metadataDoc = metadataDoc;
         requests[nextRequestId].expiration = expiration;
         requests[nextRequestId].status = RequestStatus.Open;
 
@@ -150,17 +150,17 @@ contract ServiceRequest {
 
         nextRequestId += 1;
         
-        emit CreateRequest(nextRequestId-1, msg.sender, expiration, value, documentURI);
+        emit CreateRequest(nextRequestId-1, msg.sender, expiration, value, metadataDoc);
 
         return true;
     }
 
-    function depositAndCreateRequest(uint256 value, uint256 expiration, bytes documentURI)
+    function depositAndCreateRequest(uint256 value, uint256 expiration, bytes metadataDoc)
     public
     returns(bool)
     {
         require(deposit(value));
-        require(createRequest(value, expiration, documentURI));
+        require(createRequest(value, expiration, metadataDoc));
         return true;
     }
 
@@ -293,7 +293,7 @@ contract ServiceRequest {
         return true;
     }
     
-    function createOrUpdateSolutionProposal(uint256 requestId, bytes solutionDocURI)
+    function createOrUpdateSolutionProposal(uint256 requestId, bytes solutionDoc)
     public
     returns(bool)
     {
@@ -313,10 +313,10 @@ contract ServiceRequest {
         }
         // Create or Update the Submitted Solution
         req.submittedSols[msg.sender] = sol;
-        req.submittedSols[msg.sender].solutionDocURI = solutionDocURI;
+        req.submittedSols[msg.sender].solutionDoc = solutionDoc;
         req.submittedSols[msg.sender].isSubmitted = true;
         
-        emit AddSolutionRequest(requestId, msg.sender, solutionDocURI);
+        emit AddSolutionRequest(requestId, msg.sender, solutionDoc);
 
         return true;
         

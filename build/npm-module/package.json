@@ -1,0 +1,19 @@
+{
+    "name": "rfai-contracts",
+    "version": "0.2.4",
+    "description": "Includes RFAI contracts, migrations, tests",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ksridharbabuus/RFAI-Contracts.git"
+    },
+    "author": "SridharK",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/ksridharbabuus/RFAI-Contracts.git/issues"
+    },
+    "homepage": "https://github.com/ksridharbabuus/RFAI-Contracts.git#readme",
+    "dependencies": {
+        "singularitynet-token-contracts": "2.0.0",
+        "openzeppelin-solidity": "1.11.0"
+    }
+}
