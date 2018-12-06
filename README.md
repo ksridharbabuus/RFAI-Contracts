@@ -54,6 +54,8 @@ High Level Requirements:
     B. Staking users can vote to any submission not only to shortlisted ones
     
     C. Right now only the users who has stake in the respective request can vote for the submission
+
+    d. Validation of the solution will be performed offline. Solution will be available as part of Marketplace.
   
 6. Claims
   
