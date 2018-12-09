@@ -1,2 +1,0 @@
-# rfai-contracts
-RFAI Contracts
