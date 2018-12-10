@@ -19,7 +19,7 @@ contract ServiceRequest {
         
         RequestStatus status;
         
-        address[] fundMembers;
+        address[] stakeMembers;
         mapping(address => uint256) funds;
         
         address[] submitters;
@@ -109,7 +109,7 @@ contract ServiceRequest {
     
     function addOrUpdateFoundationMembers(address member, uint role, bool active) public returns (bool) {
         
-        require(owner == msg.sender || foundationMembers[msg.sender].role == 1 || foundationMembers[msg.sender].status);
+        require(owner == msg.sender || (foundationMembers[msg.sender].role == 1 && foundationMembers[msg.sender].status));
         require(member != address(0));
         require(role == 0 || role == 1);
         
@@ -146,11 +146,9 @@ contract ServiceRequest {
         balances[msg.sender] = balances[msg.sender].sub(value);
 
         requests[nextRequestId].funds[msg.sender] = value;
-        requests[nextRequestId].fundMembers.push(msg.sender);
-
-        nextRequestId += 1;
+        requests[nextRequestId].stakeMembers.push(msg.sender);
         
-        emit CreateRequest(nextRequestId-1, msg.sender, expiration, value, documentURI);
+        emit CreateRequest(nextRequestId++, msg.sender, expiration, value, documentURI);
 
         return true;
     }
@@ -176,7 +174,7 @@ contract ServiceRequest {
         require(req.status == RequestStatus.Open);
         require(newExpiration >= req.expiration);
 
-        requests[requestId].expiration = newExpiration;
+        req.expiration = newExpiration;
 
         emit ExtendRequest(requestId, msg.sender, newExpiration);
 
@@ -193,22 +191,22 @@ contract ServiceRequest {
         Request storage req = requests[requestId];
         
         // Request should be Approved - Means in Progress
-        require(req.status == RequestStatus.Approved);
+        require(req.status == RequestStatus.Approved || (req.status == RequestStatus.Open && req.requester == msg.sender));
         
         // Request should not be expired
-        require(req.expiration > block.number && block.number < req.endEvaluation);
+        require(block.number < req.expiration && block.number < req.endEvaluation);
 
         //tranfser amount from sender to the Service Request
         balances[msg.sender] = balances[msg.sender].sub(amount);
-        requests[requestId].totalFund = requests[requestId].totalFund.add(amount);
+        req.totalFund = req.totalFund.add(amount);
         
         // Adding funds first time check
-        if(requests[requestId].funds[msg.sender] == 0){
-            requests[requestId].fundMembers.push(msg.sender);
+        if(req.funds[msg.sender] == 0){
+            req.stakeMembers.push(msg.sender);
         } // else member already exists
 
         //Update the respective request funds
-        requests[requestId].funds[msg.sender] = requests[requestId].funds[msg.sender].add(amount);
+        req.funds[msg.sender] = req.funds[msg.sender].add(amount);
         
         emit FundRequest(requestId, msg.sender, amount);
 
@@ -227,19 +225,19 @@ contract ServiceRequest {
         // Should be foundation Member
         require(foundationMembers[msg.sender].status);
         
-        Request memory req = requests[requestId];
+        Request storage req = requests[requestId];
         
         // Request should be active
         require(req.status == RequestStatus.Open);
         
-        // Request should not be expired
+        // Request should not be expired -- We should allow this
         //require(req.expiration > block.number);
         require(endSubmission < endEvaluation && endEvaluation < newExpiration && newExpiration >= req.expiration );
         
-        requests[requestId].status = RequestStatus.Approved;
-        requests[requestId].endSubmission = endSubmission;
-        requests[requestId].endEvaluation = endEvaluation;
-        requests[requestId].expiration = newExpiration;
+        req.status = RequestStatus.Approved;
+        req.endSubmission = endSubmission;
+        req.endEvaluation = endEvaluation;
+        req.expiration = newExpiration;
         
         emit ApproveRequest(requestId, msg.sender, endSubmission, endEvaluation, newExpiration);
 
@@ -282,10 +280,10 @@ contract ServiceRequest {
         
         Request storage req = requests[requestId];
         uint256 amount;
-        for(uint256 i=0; i<req.fundMembers.length; i++) {
-            amount = req.funds[req.fundMembers[i]];
-            req.funds[req.fundMembers[i]] = req.funds[req.fundMembers[i]].sub(amount);
-            balances[req.fundMembers[i]] = balances[req.fundMembers[i]].add(amount);
+        for(uint256 i=0; i<req.stakeMembers.length; i++) {
+            amount = req.funds[req.stakeMembers[i]];
+            req.funds[req.stakeMembers[i]] = req.funds[req.stakeMembers[i]].sub(amount);
+            balances[req.stakeMembers[i]] = balances[req.stakeMembers[i]].add(amount);
         }
         req.totalFund = 0;
         req.status = finalStatus;
@@ -303,7 +301,7 @@ contract ServiceRequest {
         require(req.status == RequestStatus.Approved);
         
         // Request should not be expired
-        require(req.expiration > block.number && block.number <= req.endSubmission);
+        require(block.number < req.expiration && block.number <= req.endSubmission);
         
         Solution memory sol;
 
@@ -332,7 +330,7 @@ contract ServiceRequest {
         require(req.status == RequestStatus.Approved);
         
         // Request should not be expired
-        require(req.expiration > block.number && block.number > req.endSubmission && block.number <= req.endEvaluation);
+        require(block.number < req.expiration && block.number > req.endSubmission && block.number <= req.endEvaluation);
         
         // Should be foundation Member or Staking Member to Vote
         require(foundationMembers[msg.sender].status || req.funds[msg.sender] > 0);
@@ -369,7 +367,7 @@ contract ServiceRequest {
         }
     }
     
-    function requestReClaim(uint256 requestId) public returns (bool) {
+    function requestClaimBack(uint256 requestId) public returns (bool) {
         Request storage req = requests[requestId];
         
         // Request should be active and should have funds
@@ -396,7 +394,7 @@ contract ServiceRequest {
         uint256 userStake;
         uint256 totalClaim;
         uint256 userVotes;
-        address fundMember;
+        address stakeMember;
         Request storage req = requests[requestId];
         
         // Request should be active and should have funds
@@ -410,21 +408,25 @@ contract ServiceRequest {
         
         fundationVotes = req.votes[address(0)][address(0)];
         
-        for(uint256 i=0; i<req.fundMembers.length;i++) {
+        for(uint256 i=0; i<req.stakeMembers.length;i++) {
             userVotes = 0;
-            fundMember = req.fundMembers[i];
-            userStake = req.funds[fundMember];
+            stakeMember = req.stakeMembers[i];
+            userStake = req.funds[stakeMember];
+
             if(userStake > 0) {
-                if(req.votes[fundMember][msg.sender] > 0) {
-                    userVotes = req.votes[fundMember][address(0)];
+                if(req.votes[stakeMember][msg.sender] > 0 && req.votes[stakeMember][address(0)] > 0) {
+                    userVotes = req.votes[stakeMember][address(0)].sub(req.votes[stakeMember][address(this)]);
                     userStake = userStake.div(userVotes);
-                    req.funds[fundMember] = req.funds[fundMember].sub(userStake);
+                    req.funds[stakeMember] = req.funds[stakeMember].sub(userStake);
                     totalClaim = totalClaim.add(userStake);
+                    req.votes[stakeMember][address(this)] = req.votes[stakeMember][address(this)].add(1);
                 }
-                else if(fundationVotes > 0) {
+                else if(fundationVotes > 0 && req.votes[address(0)][msg.sender] > 0 && req.votes[stakeMember][address(0)] == 0) {
+                    fundationVotes = fundationVotes.sub(req.votes[stakeMember][address(this)]);
                     userStake = userStake.div(fundationVotes);
-                    req.funds[fundMember] = req.funds[fundMember].sub(userStake);
+                    req.funds[stakeMember] = req.funds[stakeMember].sub(userStake);
                     totalClaim = totalClaim.add(userStake);
+                    req.votes[stakeMember][address(this)] = req.votes[stakeMember][address(this)].add(1);
                 }
             }
         }

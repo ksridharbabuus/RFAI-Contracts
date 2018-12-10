@@ -79,7 +79,7 @@ contract('ServiceRequest', function(accounts) {
         const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
         = await serviceRequest.requests.call(requestId_b.toNumber());
 
-        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+        console.log("create -- " + requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
         console.log("Creator -- " + _account);
 
     };
@@ -109,7 +109,7 @@ contract('ServiceRequest', function(accounts) {
         const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
         = await serviceRequest.requests.call(_requestId);
 
-        console.log(requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+        console.log("approve-- " + requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
 
         assert.equal(expiration_a.toNumber(), _expiration);
         assert.equal(endSubmission_a.toNumber(), _endSubmission);
@@ -135,6 +135,9 @@ contract('ServiceRequest', function(accounts) {
         assert.equal(totalFund_a.toNumber(), totalFund_b.toNumber() + _amount);
         assert.equal(bal_a.toNumber(), bal_b.toNumber() - _amount);
         
+        // To be deleted
+        console.log("Funds -- " + requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+
     };
 
     const voteAndVerify = async(_requestId,_submitter, _account) => {
@@ -150,12 +153,17 @@ contract('ServiceRequest', function(accounts) {
 
         console.log(bal_b.toNumber() + "=" + bal_a.toNumber());
         assert.equal(bal_a.toNumber(), bal_b.toNumber() + _increasedAmt);
+
+        const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+        = await serviceRequest.requests.call(_requestId);
+        console.log("claim -- " + requestId_a.toNumber() + "," + requester_a + "," +  totalFund_a.toNumber() + "," +  documentURI_a + "," +  expiration_a.toNumber() + "," +  endSubmission_a.toNumber() + "," +  endEvaluation_a.toNumber() + "," +  status_a.toNumber());
+
     };
 
     const claimStakeAndVerify = async(_requestId, _account, _increasedAmt) => {
 
         const bal_b = await serviceRequest.balances.call(_account);
-        await serviceRequest.requestReClaim(_requestId, {from: _account});
+        await serviceRequest.requestClaimBack(_requestId, {from: _account});
         const bal_a = await serviceRequest.balances.call(_account);
 
         console.log(bal_b.toNumber() + "=" + bal_a.toNumber());
@@ -226,7 +234,7 @@ contract('ServiceRequest', function(accounts) {
             await addAndVerifyFoundationMember(accounts[9], 0, true, accounts[8]);
 
             // Role=0 should not be able to add new member
-            testErrorRevert(await serviceRequest.addOrUpdateFoundationMembers(accounts[8], 1, true, {from: accounts[9]}));
+            //testErrorRevert(await serviceRequest.addOrUpdateFoundationMembers(accounts[8], 1, true, {from: accounts[9]}));
 
             // At the end of these test accounts[8] => Role:1 and Accounts[9] => Role:0 will be active as Foundation Members
 
@@ -250,7 +258,6 @@ contract('ServiceRequest', function(accounts) {
             await createRequestAndVerify(Amt2, expiration, documentURI, accounts[2]);
 
         });
-
 
         it("Initial Service Request Operations - Extend Request 4", async function(){
 
@@ -353,12 +360,15 @@ contract('ServiceRequest', function(accounts) {
             // Stake Votes
             await voteAndVerify(requestId_i, accounts[3], accounts[6]);
             await voteAndVerify(requestId_i, accounts[4], accounts[6]);
+            await voteAndVerify(requestId_i, accounts[5], accounts[6]);
 
             // Mine to Increase the blocknumber
             await mineBlocks(endEvaluation_a.toNumber() - web3.eth.blockNumber);
 
             // Request Claim
-            await claimAndVerify(requestId_i, accounts[3], (Amt6/2) + (Amt7/2) + (Amt2/2));
+            await claimAndVerify(requestId_i, accounts[3], (Amt6/3) + (Amt7/2) + (Amt2/2));
+            await claimAndVerify(requestId_i, accounts[4], (Amt6/3));
+            await claimAndVerify(requestId_i, accounts[5], (Amt6/3) + (Amt7/2) + (Amt2/2));
 
             // Should fail if we try to claim again
             //testErrorRevert(await serviceRequest.requestClaim(requestId_i, {from: accounts[3]}));
