@@ -57,12 +57,12 @@ contract('ServiceRequest', function(accounts) {
 
     };
 
-    const depositTokensToContract = async() => {
+    const depositTokensToContract = async(_startAccountIndex, _endAccountIndex, _depositAmt) => {
         // Deposit amount to respective accounts
-        for(var i=2;i<9;i++) {
-            await token.transfer(accounts[i],  GAmt, {from:accounts[0]});
-            await token.approve(serviceRequest.address,GAmt, {from:accounts[i]}); 
-            await serviceRequest.deposit(GAmt, {from:accounts[i]});
+        for(var i=_startAccountIndex;i<_endAccountIndex;i++) {
+            await token.transfer(accounts[i],  _depositAmt, {from:accounts[0]});
+            await token.approve(serviceRequest.address,_depositAmt, {from:accounts[i]}); 
+            await serviceRequest.deposit(_depositAmt, {from:accounts[i]});
         }
     };
 
@@ -238,9 +238,7 @@ contract('ServiceRequest', function(accounts) {
 
             // At the end of these test accounts[8] => Role:1 and Accounts[9] => Role:0 will be active as Foundation Members
 
-        });
-        
-        
+        });      
 
         it("Initial Service Request Operations - Create Request 3", async function() 
         {
@@ -254,7 +252,7 @@ contract('ServiceRequest', function(accounts) {
             let expiration = web3.eth.blockNumber + 100000;
             let documentURI = 'abcdefghijklmsnopqrstuvwxyz';
 
-            await depositTokensToContract();
+            await depositTokensToContract(2, 9, GAmt);
             await createRequestAndVerify(Amt2, expiration, documentURI, accounts[2]);
 
         });
@@ -443,5 +441,73 @@ contract('ServiceRequest', function(accounts) {
             await rejectRequestAndVerify(requestId_i, accounts[9]);
 
         });
+        
+        /*
+        it("Load Testing - Multiple Operations 11", async function() {
 
+            await depositTokensToContract(10, 80, 1000);
+
+            // Create Service Request
+            let expiration_i = web3.eth.blockNumber + 90000;
+            let endSubmission_i = web3.eth.blockNumber + 25000;
+            let endEvaluation_i = web3.eth.blockNumber + 50000;
+            let documentURI_i = 'abcdefghijklmsnopqrstuvwxyz';
+
+            let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
+
+            await createRequestAndVerify(Amt2,expiration_i, documentURI_i, accounts[2]);
+
+            // Approve the request
+            let newexpiration = expiration_i+10;
+            await approveRequestAndVerify(requestId_i, endSubmission_i, endEvaluation_i, newexpiration, accounts[8]);
+
+            // Add Funds to the request
+            for(var i=10; i<80; i++){
+                await addFundsAndValidate(requestId_i, i-9, accounts[i]);
+            }
+
+
+            // Submit the solutions
+            let solutionDocURI = 'aaalllssllddffgghhjjj';
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[3]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[4]});
+            await serviceRequest.createOrUpdateSolutionProposal(requestId_i, solutionDocURI, {from: accounts[5]});
+
+            // Mine to Increase the blocknumber
+            const [requestId_a, requester_a, totalFund_a, documentURI_a, expiration_a, endSubmission_a, endEvaluation_a, status_a]
+            = await serviceRequest.requests.call(requestId_i);
+            await mineBlocks(endSubmission_a.toNumber() - web3.eth.blockNumber);
+
+            // Foundation Votes
+            await voteAndVerify(requestId_i, accounts[3], accounts[8]);
+            await voteAndVerify(requestId_i, accounts[5], accounts[8]);
+
+            // Stake Votes
+            await voteAndVerify(requestId_i, accounts[3], accounts[6]);
+            await voteAndVerify(requestId_i, accounts[4], accounts[6]);
+            await voteAndVerify(requestId_i, accounts[5], accounts[6]);
+
+            // Mine to Increase the blocknumber
+            await mineBlocks(endEvaluation_a.toNumber() - web3.eth.blockNumber);
+
+            // Request Claim
+            const a3Bal_b = await serviceRequest.balances.call(accounts[3]);
+            await serviceRequest.requestClaim(requestId_i, {from: accounts[3]});
+            const a3Bal_a = await serviceRequest.balances.call(accounts[3]);
+            console.log(a3Bal_b + "=======" + a3Bal_a);
+            
+            
+            const a10Bal_b = await serviceRequest.balances.call(accounts[10]);
+
+            // Force Close the Request to check
+            //await serviceRequest.closeRequest(requestId_i, {from: accounts[8]});
+            
+
+            const a10Bal_a = await serviceRequest.balances.call(accounts[10]);
+
+            console.log(a10Bal_b + "=======" + a10Bal_a);
+            
+
+        });
+        */
 });

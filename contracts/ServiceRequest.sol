@@ -51,7 +51,7 @@ contract ServiceRequest {
     address[] memberKeys;
     struct Member {
         uint role; // 0-Normal member, 1-> Admin Member who can add other members
-        bool status; // True -> Actibe, False -> InActive/Deleted
+        bool status; // True -> Active, False -> InActive/Deleted
         bool exists; // To check the existstance of the Member
     }
     mapping(address => Member) public foundationMembers;
@@ -335,8 +335,8 @@ contract ServiceRequest {
         // Should be foundation Member or Staking Member to Vote
         require(foundationMembers[msg.sender].status || req.funds[msg.sender] > 0);
         
-        // Check for solution Submitter status
-        require(req.submittedSols[solutionSubmitter].isSubmitted);
+        // Check for solution Submitter status and cannot for own submission
+        require(req.submittedSols[solutionSubmitter].isSubmitted && msg.sender != solutionSubmitter);
         
         req.submittedSols[solutionSubmitter].totalVotes += 1;
         
@@ -360,7 +360,7 @@ contract ServiceRequest {
             req.submittedSols[solutionSubmitter].isShortlisted = true;
         }
         
-        if(req.votes[msg.sender][solutionSubmitter] == 0)
+        if(req.funds[msg.sender] > 0 && req.votes[msg.sender][solutionSubmitter] == 0)
         {
             req.votes[msg.sender][address(0)] += 1;
             req.votes[msg.sender][solutionSubmitter] = 1;
@@ -407,7 +407,6 @@ contract ServiceRequest {
         require(req.submittedSols[msg.sender].isSubmitted && !req.submittedSols[msg.sender].isClaimed);
         
         fundationVotes = req.votes[address(0)][address(0)];
-        
         for(uint256 i=0; i<req.stakeMembers.length;i++) {
             userVotes = 0;
             stakeMember = req.stakeMembers[i];
@@ -415,18 +414,16 @@ contract ServiceRequest {
 
             if(userStake > 0) {
                 if(req.votes[stakeMember][msg.sender] > 0 && req.votes[stakeMember][address(0)] > 0) {
-                    userVotes = req.votes[stakeMember][address(0)].sub(req.votes[stakeMember][address(this)]);
+                    userVotes = req.votes[stakeMember][address(0)].sub(req.votes[stakeMember][stakeMember]);
+                }
+                else if(fundationVotes > 0 && req.votes[address(0)][msg.sender] > 0 && req.votes[stakeMember][address(0)] == 0) {
+                    userVotes = fundationVotes.sub(req.votes[stakeMember][stakeMember]);               
+                }
+                if(userVotes > 0) {
                     userStake = userStake.div(userVotes);
                     req.funds[stakeMember] = req.funds[stakeMember].sub(userStake);
                     totalClaim = totalClaim.add(userStake);
-                    req.votes[stakeMember][address(this)] = req.votes[stakeMember][address(this)].add(1);
-                }
-                else if(fundationVotes > 0 && req.votes[address(0)][msg.sender] > 0 && req.votes[stakeMember][address(0)] == 0) {
-                    fundationVotes = fundationVotes.sub(req.votes[stakeMember][address(this)]);
-                    userStake = userStake.div(fundationVotes);
-                    req.funds[stakeMember] = req.funds[stakeMember].sub(userStake);
-                    totalClaim = totalClaim.add(userStake);
-                    req.votes[stakeMember][address(this)] = req.votes[stakeMember][address(this)].add(1);
+                    req.votes[stakeMember][stakeMember] = req.votes[stakeMember][stakeMember].add(1);
                 }
             }
         }
