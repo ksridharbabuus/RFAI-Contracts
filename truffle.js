@@ -32,6 +32,7 @@ let truffleOptions = {
         },
     },
     mocha: {
+        enableTimeouts: false,
         reporter: 'eth-gas-reporter',
         reporterOptions : {
             currency: 'USD',

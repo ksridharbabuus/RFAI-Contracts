@@ -443,14 +443,18 @@ contract('ServiceRequest', function(accounts) {
         });
         
         /*
-        it("Load Testing - Multiple Operations 11", async function() {
+        it("Load Testing - Multiple Operations 11.0", async function() {
 
-            await depositTokensToContract(10, 80, 1000);
+            await depositTokensToContract(10, 999, 1000);
+
+        });
+
+        it("Load Testing - Multiple Operations 11.1", async function() {
 
             // Create Service Request
-            let expiration_i = web3.eth.blockNumber + 90000;
-            let endSubmission_i = web3.eth.blockNumber + 25000;
-            let endEvaluation_i = web3.eth.blockNumber + 50000;
+            let expiration_i = web3.eth.blockNumber + 4500;
+            let endSubmission_i = web3.eth.blockNumber + 1500;
+            let endEvaluation_i = web3.eth.blockNumber + 3000;
             let documentURI_i = 'abcdefghijklmsnopqrstuvwxyz';
 
             let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
@@ -462,10 +466,15 @@ contract('ServiceRequest', function(accounts) {
             await approveRequestAndVerify(requestId_i, endSubmission_i, endEvaluation_i, newexpiration, accounts[8]);
 
             // Add Funds to the request
-            for(var i=10; i<80; i++){
+            for(var i=10; i<1000; i++){
                 await addFundsAndValidate(requestId_i, i-9, accounts[i]);
             }
 
+        });
+        
+        it("Load Testing - Multiple Operations 11.2", async function() {
+
+            let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber() - 1;
 
             // Submit the solutions
             let solutionDocURI = 'aaalllssllddffgghhjjj';

@@ -46,6 +46,9 @@ contract ServiceRequest {
     mapping (uint256 => Request) public requests;
     mapping (address => uint256) public balances;
     
+    uint256 minStake;
+    uint256 maxStakers;
+
     address owner;
     
     address[] memberKeys;
@@ -71,12 +74,14 @@ contract ServiceRequest {
     event CloseRequest(uint256 indexed requestId, address indexed actor);
     event RejectRequest(uint256 indexed requestId, address indexed actor);
 
-    constructor (address _token)
+    constructor (address _token, uint256 _minStake, uint256 _maxStakers)
     public
     {
         token = ERC20(_token);
         owner = msg.sender;
         nextRequestId = 0;
+        minStake = _minStake;
+        maxStakers = _maxStakers;
     }
   
     function deposit(uint256 value) 
@@ -104,6 +109,13 @@ contract ServiceRequest {
         
         owner = newOwner;
         
+        return true;
+    }
+
+    function updateLimits(uint256 _minStake, uint256 _maxStakers) public returns(bool) {
+        require(owner == msg.sender);
+        minStake = _minStake;
+        maxStakers = _maxStakers;
         return true;
     }
     
@@ -186,7 +198,7 @@ contract ServiceRequest {
     public
     returns(bool)
     {
-        require(balances[msg.sender] >= amount && amount > 0);
+        require(balances[msg.sender] >= amount && amount > 0 && amount >= minStake);
         
         Request storage req = requests[requestId];
         
@@ -195,6 +207,9 @@ contract ServiceRequest {
         
         // Request should not be expired
         require(block.number < req.expiration && block.number < req.endEvaluation);
+
+        // Check for Max Stakers only for new stake 
+        require(req.stakeMembers.length < maxStakers || req.funds[msg.sender] > 0);
 
         //tranfser amount from sender to the Service Request
         balances[msg.sender] = balances[msg.sender].sub(amount);
