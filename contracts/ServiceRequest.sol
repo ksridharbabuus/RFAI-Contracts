@@ -264,12 +264,16 @@ contract ServiceRequest {
         // Should be foundation Member
         require(foundationMembers[msg.sender].status);
         
-        Request memory req = requests[requestId];
+        Request storage req = requests[requestId];
         
         // Request should be active
         require(req.status == RequestStatus.Open);
         
-        settleFundsAndChangeStatus(requestId, RequestStatus.Rejected);
+        // Change the status of the Request to Rejected
+        req.status = RequestStatus.Rejected;
+
+        // Stake Members to needs to claim by themselves
+        //settleFundsAndChangeStatus(requestId, RequestStatus.Rejected);
         
         emit RejectRequest(requestId, msg.sender);
 
@@ -281,16 +285,21 @@ contract ServiceRequest {
         // Should be ative foundation Member
         require(foundationMembers[msg.sender].status);
         
-        Request memory req = requests[requestId];
+        Request storage req = requests[requestId];
         
         // Request should be active
         require(req.status == RequestStatus.Approved);  
         
-        settleFundsAndChangeStatus(requestId, RequestStatus.Closed);
+        // Change the status of the Request to Closed
+        req.status = RequestStatus.Closed;
+        
+        // Stake Members to needs to claim by themselves
+        //settleFundsAndChangeStatus(requestId, RequestStatus.Closed);
         
         emit CloseRequest(requestId, msg.sender);
     }
     
+    // TBD: Function to be deleted as Claim will be done explicitly
     function settleFundsAndChangeStatus(uint256 requestId, RequestStatus finalStatus) internal returns(bool) {
         
         Request storage req = requests[requestId];
@@ -383,16 +392,17 @@ contract ServiceRequest {
     }
     
     function requestClaimBack(uint256 requestId) public returns (bool) {
+
         Request storage req = requests[requestId];
         
-        // Request should be active and should have funds
-        require(req.status == RequestStatus.Approved && req.totalFund > 0);
-        
-        // Only after expire
-        require(block.number > req.expiration);
-        
+        // Request should have funds
+        require(req.totalFund > 0);
+
         // Should have stake
         require(req.funds[msg.sender] > 0);
+
+        // Approved request should be expiried or Request is closed / rejected
+        require((block.number > req.expiration && req.status == RequestStatus.Approved) || req.status == RequestStatus.Closed || req.status == RequestStatus.Rejected);
         
         balances[msg.sender] = balances[msg.sender].add(req.funds[msg.sender]);
         req.totalFund = req.totalFund.sub(req.funds[msg.sender]);

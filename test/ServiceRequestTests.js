@@ -10,7 +10,6 @@ Token.setProvider(web3.currentProvider);
 
 var ethereumjsabi  = require('ethereumjs-abi');
 var ethereumjsutil = require('ethereumjs-util');
-let signFuns       = require('./sign_mpe_funs');
 
 async function testErrorRevert(prom)
 {
@@ -306,6 +305,10 @@ contract('ServiceRequest', function(accounts) {
 
             console.log(requestId.toNumber() + "," + requester + "," +  totalFund.toNumber() + "," +  documentURI + "," +  expiration.toNumber() + "," +  endSubmission.toNumber() + "," +  endEvaluation.toNumber() + "," +  status.toNumber());
             
+            await serviceRequest.requestClaimBack(0, {from: accounts[2]});
+            await serviceRequest.requestClaimBack(0, {from: accounts[6]});
+            await serviceRequest.requestClaimBack(0, {from: accounts[7]});
+
             const a2Bal_a = await serviceRequest.balances.call(accounts[2]);
             const a6Bal_a = await serviceRequest.balances.call(accounts[6]);
             const a7Bal_a = await serviceRequest.balances.call(accounts[7]);
@@ -319,7 +322,7 @@ contract('ServiceRequest', function(accounts) {
             //testErrorRevert(await serviceRequest.addFundsToRequest(0, Amt6, {from: accounts[6]}));
             
         });
-
+        
         it("Service Request Operations - Vote and Claim Request 8", async function(){
 
             // Create Service Request
@@ -424,7 +427,7 @@ contract('ServiceRequest', function(accounts) {
             //testErrorRevert(await serviceRequest.requestClaim(requestId_i, {from: accounts[3]}));
 
         });
-
+        
         it("Service Request Operations - Reject Request 10", async function(){
 
             // Create Service Request
@@ -435,10 +438,19 @@ contract('ServiceRequest', function(accounts) {
 
             let requestId_i = (await serviceRequest.nextRequestId.call()).toNumber();
 
+            const a2Bal_b = await serviceRequest.balances.call(accounts[2]);
+
             await createRequestAndVerify(Amt2,expiration_i, documentURI_i, accounts[2]);
 
             // Reject the request
             await rejectRequestAndVerify(requestId_i, accounts[9]);
+
+            // Reclaim the initial stake while creating the request
+            await serviceRequest.requestClaimBack(requestId_i, {from: accounts[2]});
+
+            const a2Bal_a = await serviceRequest.balances.call(accounts[2]);
+
+            assert.equal(a2Bal_a.toNumber(), a2Bal_b.toNumber());
 
         });
         
