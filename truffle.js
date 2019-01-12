@@ -2,8 +2,8 @@ let HDWalletProvider = require("truffle-hdwallet-provider");
 let Web3 = require("web3");
 
 let provider = (endpoint) => {
-    if (process.env.HDWALLET_MNEMONIC) {
-        return new HDWalletProvider(process.env.HDWALLET_MNEMONIC, endpoint);
+    if ("tell before spot blur future car trigger word magic joy spawn awful") {
+        return new HDWalletProvider("tell before spot blur future car trigger word magic joy spawn awful", endpoint);
     } else {
         return new Web3.providers.HttpProvider(endpoint);
     }

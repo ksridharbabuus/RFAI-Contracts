@@ -46,12 +46,12 @@ contract ServiceRequest {
     mapping (uint256 => Request) public requests;
     mapping (address => uint256) public balances;
     
-    uint256 minStake;
-    uint256 maxStakers;
+    uint256 public minStake;
+    uint256 public maxStakers;
 
-    address owner;
+    address public owner;
     
-    address[] memberKeys;
+    address[] public memberKeys;
     struct Member {
         uint role; // 0-Normal member, 1-> Admin Member who can add other members
         bool status; // True -> Active, False -> InActive/Deleted
