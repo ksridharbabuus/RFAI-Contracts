@@ -272,9 +272,6 @@ contract ServiceRequest {
         // Change the status of the Request to Rejected
         req.status = RequestStatus.Rejected;
 
-        // Stake Members to needs to claim by themselves
-        //settleFundsAndChangeStatus(requestId, RequestStatus.Rejected);
-        
         emit RejectRequest(requestId, msg.sender);
 
         return true;
@@ -293,26 +290,7 @@ contract ServiceRequest {
         // Change the status of the Request to Closed
         req.status = RequestStatus.Closed;
         
-        // Stake Members to needs to claim by themselves
-        //settleFundsAndChangeStatus(requestId, RequestStatus.Closed);
-        
         emit CloseRequest(requestId, msg.sender);
-    }
-    
-    // TBD: Function to be deleted as Claim will be done explicitly
-    function settleFundsAndChangeStatus(uint256 requestId, RequestStatus finalStatus) internal returns(bool) {
-        
-        Request storage req = requests[requestId];
-        uint256 amount;
-        for(uint256 i=0; i<req.stakeMembers.length; i++) {
-            amount = req.funds[req.stakeMembers[i]];
-            req.funds[req.stakeMembers[i]] = req.funds[req.stakeMembers[i]].sub(amount);
-            balances[req.stakeMembers[i]] = balances[req.stakeMembers[i]].add(amount);
-        }
-        req.totalFund = 0;
-        req.status = finalStatus;
-        
-        return true;
     }
     
     function createOrUpdateSolutionProposal(uint256 requestId, bytes solutionDocURI)
@@ -461,5 +439,66 @@ contract ServiceRequest {
         
         return true;
     }
-    
+
+
+    // Getters
+    function getFoundationMemberKeys() public view returns (address[]) {
+        return memberKeys;
+    }
+
+    function getServiceRequestById(uint256 reqId) public view 
+    returns (bool found, uint256 requestId, address requester, uint256 totalFund, bytes documentURI, uint256 expiration, uint256 endSubmission, uint256 endEvaluation, RequestStatus status, address[] stakeMembers, address[] submitters) 
+    {
+        Request memory req = requests[reqId];
+
+        if(req.requester == address(0)) {
+            found = false;
+            return;
+        }
+
+        found = true;
+        requestId = req.requestId;
+        requester = req.requester; 
+        totalFund = req.totalFund; 
+        documentURI = req.documentURI; 
+        expiration = req.expiration; 
+        endSubmission = req.endSubmission;
+        endEvaluation = req.endEvaluation; 
+        status = req.status; 
+        stakeMembers = req.stakeMembers; 
+        submitters = req.submitters;
+    }
+
+    function getSubmittedSolutionById(uint256 requestId, address submitter) public view 
+    returns (bool found, bytes solutionDocURI, uint256 totalVotes, bool isSubmitted, bool isShortlisted, bool isClaimed)
+    {
+        Request storage req = requests[requestId];
+
+        if(req.submittedSols[submitter].isSubmitted == false) {
+            found = false;
+            return;
+        }
+
+        found = true;
+        solutionDocURI = req.submittedSols[submitter].solutionDocURI;
+        totalVotes = req.submittedSols[submitter].totalVotes;
+        isSubmitted = req.submittedSols[submitter].isSubmitted;
+        isShortlisted =  req.submittedSols[submitter].isShortlisted;
+        isClaimed = req.submittedSols[submitter].isClaimed;
+
+    }
+
+    function getStakeById(uint256 requestId, address staker) public view 
+    returns (bool found, uint256 stake)
+    {
+        Request storage req = requests[requestId];
+        if(req.funds[staker] == 0) {
+            found = false;
+            return;
+        }
+        found = true;
+        stake = req.funds[staker];
+
+    }
+  
 }
